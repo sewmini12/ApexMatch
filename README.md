@@ -26,9 +26,9 @@ ApexMatch is a backend financial-engine simulation that processes buy and sell o
 
 * **Java 21**
 * **Maven**
-* **Spring Boot** *(planned)*
-* **PostgreSQL** *(planned)*
-* **JUnit 5 & Mockito** *(planned)*
+* **Spring Boot** 
+* **PostgreSQL** 
+* **JUnit 5 & Mockito** 
 
 ## Core Concept
 
