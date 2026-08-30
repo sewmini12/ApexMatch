@@ -1,5 +1,6 @@
 package com.apexmatch;
 
+import com.apexmatch.engine.OrderBook;
 import com.apexmatch.model.Order;
 import com.apexmatch.model.OrderSide;
 
@@ -7,9 +8,12 @@ public class Main {
 
     public static void main(String[] args) {
 
-        Order aliceOrder = new Order(
+        OrderBook orderBook = new OrderBook();
+
+        // BUY orders
+        Order alice = new Order(
                 "ORD-001",
-                "USER-101",
+                "ALICE",
                 "AAPL",
                 OrderSide.BUY,
                 150.00,
@@ -17,15 +21,38 @@ public class Main {
                 1
         );
 
-        System.out.println("Order ID: " + aliceOrder.getOrderId());
-        System.out.println("User: " + aliceOrder.getUserId());
-        System.out.println("Symbol: " + aliceOrder.getSymbol());
-        System.out.println("Side: " + aliceOrder.getSide());
-        System.out.println("Price: $" + aliceOrder.getPrice());
-        System.out.println("Quantity: " + aliceOrder.getQuantity());
+        Order bob = new Order(
+                "ORD-002",
+                "BOB",
+                "AAPL",
+                OrderSide.BUY,
+                145.00,
+                100,
+                2
+        );
 
-        aliceOrder.reduceQuantity(40);
+        Order charlie = new Order(
+                "ORD-003",
+                "CHARLIE",
+                "AAPL",
+                OrderSide.BUY,
+                155.00,
+                100,
+                3
+        );
 
-        System.out.println("Remaining quantity: " + aliceOrder.getQuantity());
+        orderBook.addOrder(alice);
+        orderBook.addOrder(bob);
+        orderBook.addOrder(charlie);
+
+        // Check best BUY
+        Order bestBuy = orderBook.getBestBuy();
+
+        System.out.println("Best BUY:");
+        System.out.println(
+                bestBuy.getUserId() +
+                " - $" +
+                bestBuy.getPrice()
+        );
     }
 }
