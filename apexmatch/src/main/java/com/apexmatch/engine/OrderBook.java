@@ -61,4 +61,11 @@ public class OrderBook {
     public Order getBestSell() {
         return sellOrders.peek();
     }
+    public Order removeBestBuy() {
+    return buyOrders.poll();
+    }
+
+    public Order removeBestSell() {
+        return sellOrders.poll();
+    }
 }
