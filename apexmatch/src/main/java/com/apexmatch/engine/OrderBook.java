@@ -12,10 +12,15 @@ public class OrderBook {
 
     public OrderBook() {
 
+        // BUY orders:
+        // Highest price first
+        // If prices are equal, oldest order first
         buyOrders = new PriorityQueue<>(
                 (order1, order2) -> {
+
                     int priceComparison =
-                            Double.compare(order2.getPrice(), order1.getPrice());
+                            order2.getPrice()
+                                    .compareTo(order1.getPrice());
 
                     if (priceComparison != 0) {
                         return priceComparison;
@@ -28,10 +33,15 @@ public class OrderBook {
                 }
         );
 
+        // SELL orders:
+        // Lowest price first
+        // If prices are equal, oldest order first
         sellOrders = new PriorityQueue<>(
                 (order1, order2) -> {
+
                     int priceComparison =
-                            Double.compare(order1.getPrice(), order2.getPrice());
+                            order1.getPrice()
+                                    .compareTo(order2.getPrice());
 
                     if (priceComparison != 0) {
                         return priceComparison;
@@ -61,8 +71,9 @@ public class OrderBook {
     public Order getBestSell() {
         return sellOrders.peek();
     }
+
     public Order removeBestBuy() {
-    return buyOrders.poll();
+        return buyOrders.poll();
     }
 
     public Order removeBestSell() {
