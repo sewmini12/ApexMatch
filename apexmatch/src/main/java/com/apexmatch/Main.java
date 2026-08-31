@@ -1,59 +1,71 @@
 package com.apexmatch;
 
+import com.apexmatch.engine.MatchingEngine;
 import com.apexmatch.engine.OrderBook;
 import com.apexmatch.model.Order;
 import com.apexmatch.model.OrderSide;
+import com.apexmatch.model.OrderType;
+import com.apexmatch.model.Trade;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 public class Main {
 
     public static void main(String[] args) {
 
+        // Create order book and matching engine
         OrderBook orderBook = new OrderBook();
+        MatchingEngine engine = new MatchingEngine(orderBook);
 
-        // BUY orders
-        Order alice = new Order(
+        // Bob places a LIMIT SELL order
+        Order bob = new Order(
                 "ORD-001",
-                "ALICE",
+                "BOB",
                 "AAPL",
-                OrderSide.BUY,
-                150.00,
-                100,
+                OrderSide.SELL,
+                OrderType.LIMIT,
+                new BigDecimal("145.00"),
+                60,
                 1
         );
 
-        Order bob = new Order(
+        // Add Bob's order to the order book
+        orderBook.addOrder(bob);
+
+        // Alice places a MARKET BUY order
+        Order alice = new Order(
                 "ORD-002",
-                "BOB",
+                "ALICE",
                 "AAPL",
                 OrderSide.BUY,
-                145.00,
+                OrderType.MARKET,
+                null,
                 100,
                 2
         );
 
-        Order charlie = new Order(
-                "ORD-003",
-                "CHARLIE",
-                "AAPL",
-                OrderSide.BUY,
-                155.00,
-                100,
-                3
-        );
+        // Submit Alice's order to the matching engine
+        List<Trade> trades = engine.submitOrder(alice);
 
-        orderBook.addOrder(alice);
-        orderBook.addOrder(bob);
-        orderBook.addOrder(charlie);
+        // Display executed trades
+        for (Trade trade : trades) {
 
-        // Check best BUY
-        Order bestBuy = orderBook.getBestBuy();
+            System.out.println("TRADE EXECUTED");
+            System.out.println("----------------");
+            System.out.println("Trade ID: " + trade.getTradeId());
+            System.out.println("Stock: " + trade.getSymbol());
+            System.out.println("Buyer: " + trade.getBuyerId());
+            System.out.println("Seller: " + trade.getSellerId());
+            System.out.println("Price: $" + trade.getPrice());
+            System.out.println("Quantity: " + trade.getQuantity());
+        }
 
-        System.out.println("Best BUY:");
+        // Display remaining quantity
+        System.out.println();
         System.out.println(
-                bestBuy.getUserId() +
-                " - $" +
-                bestBuy.getPrice()
+                "Alice remaining quantity: "
+                        + alice.getQuantity()
         );
     }
-    
 }
