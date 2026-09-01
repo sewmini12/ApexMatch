@@ -30,20 +30,7 @@ public class Main {
                 1
         );
 
-        // Add Bob's order to the order book
-        orderBook.addOrder(bob);
-
-        // Alice places a MARKET BUY order
-        Order alice = new Order(
-                "ORD-002",
-                "ALICE",
-                "AAPL",
-                OrderSide.BUY,
-                OrderType.MARKET,
-                null,
-                100,
-                2
-        );
+       
 
         // Submit Alice's order to the matching engine
         List<Trade> trades = engine.submitOrder(alice);
