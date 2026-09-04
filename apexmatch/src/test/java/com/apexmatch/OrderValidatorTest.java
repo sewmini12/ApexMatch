@@ -1,4 +1,4 @@
-package test.java.com.apexmatch;
+package com.apexmatch;
 
 import com.apexmatch.model.Order;
 import com.apexmatch.model.OrderSide;

@@ -1,26 +1,28 @@
 package com.apexmatch.model;
+
 import java.math.BigDecimal;
+
 public class Trade {
 
-    private final String tradeId;
-    private final String symbol;
-    private final String buyerId;
-    private final String sellerId;
-    private final BigDecimal price;
-    private final long quantity;
+    private String tradeId;
+    private String symbol;
+    private String buyer;
+    private String seller;
+    private BigDecimal price;
+    private long quantity;
 
     public Trade(
             String tradeId,
             String symbol,
-            String buyerId,
-            String sellerId,
+            String buyer,
+            String seller,
             BigDecimal price,
-            long quantity
-    ) {
+            long quantity) {
+
         this.tradeId = tradeId;
         this.symbol = symbol;
-        this.buyerId = buyerId;
-        this.sellerId = sellerId;
+        this.buyer = buyer;
+        this.seller = seller;
         this.price = price;
         this.quantity = quantity;
     }
@@ -33,12 +35,20 @@ public class Trade {
         return symbol;
     }
 
+    public String getBuyer() {
+        return buyer;
+    }
+
     public String getBuyerId() {
-        return buyerId;
+        return buyer;
+    }
+
+    public String getSeller() {
+        return seller;
     }
 
     public String getSellerId() {
-        return sellerId;
+        return seller;
     }
 
     public BigDecimal getPrice() {

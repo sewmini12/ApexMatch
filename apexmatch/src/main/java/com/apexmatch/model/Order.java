@@ -1,17 +1,18 @@
+
 package com.apexmatch.model;
 
 import java.math.BigDecimal;
 
 public class Order {
 
-    private final String orderId;
-    private final String userId;
-    private final String symbol;
-    private final OrderSide side;
-    private final OrderType type;
-    private final BigDecimal price;
+    private String orderId;
+    private String userId;
+    private String symbol;
+    private OrderSide side;
+    private OrderType type;
+    private BigDecimal price;
     private long quantity;
-    private final long sequenceNumber;
+    private long sequenceNumber;
 
     public Order(
             String orderId,
@@ -21,8 +22,8 @@ public class Order {
             OrderType type,
             BigDecimal price,
             long quantity,
-            long sequenceNumber
-    ) {
+            long sequenceNumber) {
+
         this.orderId = orderId;
         this.userId = userId;
         this.symbol = symbol;
@@ -65,7 +66,7 @@ public class Order {
         return sequenceNumber;
     }
 
-    public void reduceQuantity(long amount) {
-        this.quantity -= amount;
+    public void setQuantity(long quantity) {
+        this.quantity = quantity;
     }
 }

@@ -1,4 +1,4 @@
-package main.java.com.apexmatch;
+package com.apexmatch;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -7,10 +7,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class ApexMatchApplication {
 
     public static void main(String[] args) {
-
-        SpringApplication.run(
-                ApexMatchApplication.class,
-                args
-        );
+        SpringApplication.run(ApexMatchApplication.class, args);
     }
 }

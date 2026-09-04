@@ -3,9 +3,12 @@ D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\contro
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\dto\OrderRequest.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\engine\MatchingEngine.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\engine\OrderBook.java
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\entity\TradeEntity.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\Main.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\model\Order.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\model\OrderSide.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\model\OrderType.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\model\Trade.java
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\repository\TradeRepository.java
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\service\OrderService.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\validation\OrderValidator.java
