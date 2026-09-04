@@ -4,133 +4,119 @@ import com.apexmatch.model.Order;
 import com.apexmatch.model.OrderSide;
 import com.apexmatch.model.OrderType;
 import com.apexmatch.model.Trade;
+import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import com.apexmatch.validation.OrderValidator;
+import java.util.concurrent.atomic.AtomicLong;
 
+@Service
 public class MatchingEngine {
 
     private final OrderBook orderBook;
+
+    private final AtomicLong tradeCounter = new AtomicLong(1);
 
     public MatchingEngine(OrderBook orderBook) {
         this.orderBook = orderBook;
     }
 
-    public List<Trade> submitOrder(Order incomingOrder) {
-        
-        OrderValidator.validate(incomingOrder);
+    public synchronized List<Trade> submitOrder(Order incomingOrder) {
+
         List<Trade> trades = new ArrayList<>();
 
-        while (true) {
+        while (incomingOrder.getQuantity() > 0) {
 
-            Order bestOppositeOrder;
+            Order oppositeOrder;
 
-            // Find the best order on the opposite side
             if (incomingOrder.getSide() == OrderSide.BUY) {
-                bestOppositeOrder = orderBook.getBestSell();
+                oppositeOrder = orderBook.getBestSell();
             } else {
-                bestOppositeOrder = orderBook.getBestBuy();
+                oppositeOrder = orderBook.getBestBuy();
             }
 
-            // No order available to match
-            if (bestOppositeOrder == null) {
+            // No opposite order
+            if (oppositeOrder == null) {
                 break;
             }
 
-            // Different stocks cannot be matched
+            // Different stock
             if (!incomingOrder.getSymbol()
-                    .equals(bestOppositeOrder.getSymbol())) {
+                    .equals(oppositeOrder.getSymbol())) {
                 break;
             }
 
-            boolean canMatch;
+            // Price check for LIMIT orders
+            if (incomingOrder.getType() == OrderType.LIMIT &&
+                    oppositeOrder.getType() == OrderType.LIMIT) {
 
-            // Market orders can match with any available opposite order
-            if (incomingOrder.getType() == OrderType.MARKET) {
+                if (incomingOrder.getSide() == OrderSide.BUY &&
+                        incomingOrder.getPrice()
+                                .compareTo(oppositeOrder.getPrice()) < 0) {
+                    break;
+                }
 
-                canMatch = true;
-
-            } else {
-
-                // Limit order price comparison
-                if (incomingOrder.getSide() == OrderSide.BUY) {
-
-                    canMatch =
-                            incomingOrder.getPrice()
-                                    .compareTo(bestOppositeOrder.getPrice()) >= 0;
-
-                } else {
-
-                    canMatch =
-                            incomingOrder.getPrice()
-                                    .compareTo(bestOppositeOrder.getPrice()) <= 0;
+                if (incomingOrder.getSide() == OrderSide.SELL &&
+                        incomingOrder.getPrice()
+                                .compareTo(oppositeOrder.getPrice()) > 0) {
+                    break;
                 }
             }
 
-            // Prices don't allow a match
-            if (!canMatch) {
-                break;
-            }
-
-            // Trade the smaller available quantity
             long tradeQuantity = Math.min(
                     incomingOrder.getQuantity(),
-                    bestOppositeOrder.getQuantity()
+                    oppositeOrder.getQuantity()
             );
 
-            // Determine buyer and seller
-            String buyerId;
-            String sellerId;
+            BigDecimal tradePrice = oppositeOrder.getPrice();
+
+            String buyer;
+            String seller;
 
             if (incomingOrder.getSide() == OrderSide.BUY) {
-
-                buyerId = incomingOrder.getUserId();
-                sellerId = bestOppositeOrder.getUserId();
-
+                buyer = incomingOrder.getUserId();
+                seller = oppositeOrder.getUserId();
             } else {
-
-                buyerId = bestOppositeOrder.getUserId();
-                sellerId = incomingOrder.getUserId();
+                buyer = oppositeOrder.getUserId();
+                seller = incomingOrder.getUserId();
             }
 
-            // Reduce quantities
-            incomingOrder.reduceQuantity(tradeQuantity);
-            bestOppositeOrder.reduceQuantity(tradeQuantity);
-
-            // Create trade using the resting order's price
             Trade trade = new Trade(
-                    "TRD-" + (trades.size() + 1),
+                    "TRD-" + tradeCounter.getAndIncrement(),
                     incomingOrder.getSymbol(),
-                    buyerId,
-                    sellerId,
-                    bestOppositeOrder.getPrice(),
+                    buyer,
+                    seller,
+                    tradePrice,
                     tradeQuantity
             );
 
             trades.add(trade);
 
-            // Remove completely filled opposite order
-            if (bestOppositeOrder.getQuantity() == 0) {
+            incomingOrder.setQuantity(
+                    incomingOrder.getQuantity() - tradeQuantity
+            );
 
-                if (incomingOrder.getSide() == OrderSide.BUY) {
-                    orderBook.removeBestSell();
-                } else {
+            oppositeOrder.setQuantity(
+                    oppositeOrder.getQuantity() - tradeQuantity
+            );
+
+            if (oppositeOrder.getQuantity() == 0) {
+
+                if (oppositeOrder.getSide() == OrderSide.BUY) {
                     orderBook.removeBestBuy();
+                } else {
+                    orderBook.removeBestSell();
                 }
-            }
-
-            // Incoming order completely filled
-            if (incomingOrder.getQuantity() == 0) {
-                break;
             }
         }
 
-        // Only LIMIT orders can remain in the order book
-        if (incomingOrder.getQuantity() > 0
-                && incomingOrder.getType() == OrderType.LIMIT) {
+        // Remaining incoming order goes into the book
+        if (incomingOrder.getQuantity() > 0) {
 
-            orderBook.addOrder(incomingOrder);
+            if (incomingOrder.getType() == OrderType.LIMIT) {
+                orderBook.addOrder(incomingOrder);
+            }
         }
 
         return trades;
