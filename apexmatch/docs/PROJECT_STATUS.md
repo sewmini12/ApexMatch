@@ -20,9 +20,9 @@ Current status of development, components, and architectural roadmap for ApexMat
 - [x] PostgreSQL connection configuration (`application.properties` with environment variables)
 - [x] Trade persistence (`TradeEntity`, `TradeRepository`)
 - [x] Integration / Controller testing (`OrderControllerTest` via MockMvc, `OrderServiceTest` via Mockito)
+- [x] Concurrency controls (`ReentrantLock`, thread-safe order matching, multi-threaded concurrency tests)
 - [ ] Exception handling (`@ControllerAdvice`)
 - [ ] Request validation (Bean validation annotations)
-- [ ] Concurrency controls (`ReentrantLock`, thread-safe order processing)
 - [ ] Async persistence (Spring `@Async` / decoupled event stream)
 - [ ] Swagger / OpenAPI documentation
 - [ ] Docker containerization
@@ -30,7 +30,7 @@ Current status of development, components, and architectural roadmap for ApexMat
 
 ---
 
-## Active Milestone: PostgreSQL / Neon Verification
-- All 28 automated tests passing (`mvn clean test`).
-- Package mismatches and duplicate classes resolved.
-- Ready for live Neon database link connection.
+## Active Milestone: Concurrency & Thread Safety
+- `ReentrantLock` protects the critical section in `MatchingEngine.submitOrder` with `try/finally` block.
+- 33 total automated unit, controller, and concurrency tests passing (`mvn clean test`).
+- Verified zero overselling, zero state corruption, and multi-symbol isolation under concurrent multi-threaded execution.

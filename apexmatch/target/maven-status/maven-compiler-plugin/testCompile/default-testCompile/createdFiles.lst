@@ -1,4 +1,5 @@
 com\apexmatch\MatchingEngineTest.class
+com\apexmatch\engine\MatchingEngineConcurrencyTest.class
 com\apexmatch\OrderValidatorTest.class
 com\apexmatch\controller\OrderControllerTest.class
 com\apexmatch\service\OrderServiceTest.class

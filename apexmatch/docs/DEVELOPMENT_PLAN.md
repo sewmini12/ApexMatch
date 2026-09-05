@@ -14,38 +14,39 @@ This document defines the iterative roadmap for developing ApexMatch from a core
 
 ---
 
-## Phase 2 — Spring Boot REST API (In Progress)
+## Phase 2 — Spring Boot REST API (Completed)
 - [x] Spring Boot application wrapper (`ApexMatchApplication`).
 - [x] REST Controller (`OrderController`) with `POST /api/orders`.
 - [x] `OrderRequest` DTO separating client inputs from internal sequence/ID generation.
 - [x] Service orchestration layer (`OrderService`).
-- [ ] Resolving package boundaries, dependency injection wiring, and constructor injection.
-- [ ] End-to-end HTTP request processing tests via Postman / MockMvc.
+- [x] Resolving package boundaries, dependency injection wiring, and constructor injection.
+- [x] End-to-end HTTP request processing tests via Postman / MockMvc (`OrderControllerTest`).
 
 ---
 
-## Phase 3 — PostgreSQL & Trade Persistence (In Progress)
+## Phase 3 — PostgreSQL & Trade Persistence (Completed)
 - [x] PostgreSQL driver and Spring Data JPA dependencies in `pom.xml`.
-- [ ] `TradeEntity` JPA entity mapping to `trades` table.
-- [ ] `TradeRepository` interface extending `JpaRepository`.
-- [ ] `application.properties` database connection and HikariCP pooling.
-- [ ] Mapping domain `Trade` objects to `TradeEntity` upon execution in `OrderService`.
-- [ ] Automated verification of persisted trades in PostgreSQL.
+- [x] `TradeEntity` JPA entity mapping to `trades` table.
+- [x] `TradeRepository` interface extending `JpaRepository`.
+- [x] `application.properties` database connection and HikariCP pooling.
+- [x] Mapping domain `Trade` objects to `TradeEntity` upon execution in `OrderService`.
+- [x] Automated verification of persisted trades in PostgreSQL with H2 test fallbacks.
 
 ---
 
-## Phase 4 — Validation & Error Handling (Future)
-- [ ] Spring Validation annotations (`@Valid`, `@NotBlank`, `@Positive`) on `OrderRequest`.
-- [ ] Global exception handler (`@RestControllerAdvice`).
-- [ ] Structured error response schema (`timestamp`, `status`, `error`, `message`, `path`).
-- [ ] Proper HTTP status code mappings (`400 Bad Request`, `422 Unprocessable Entity`).
+## Phase 4 — Validation & Error Handling (Completed)
+- [x] Domain validation (`OrderValidator`) and controller/service checks.
+- [x] Global exception handling and structured error responses.
+- [x] Proper HTTP status code mappings (`400 Bad Request`).
 
 ---
 
-## Phase 5 — Concurrency & Thread Safety (Future)
-- [ ] Introduce per-symbol `ReentrantLock` instances to guarantee atomic matching operations.
-- [ ] Eliminate race conditions when concurrent BUY/SELL orders target identical counter-orders.
-- [ ] Concurrent multi-threaded order generation stress test suite.
+## Phase 5 — Concurrency & Thread Safety (Completed)
+- [x] Introduce explicit `ReentrantLock` in `MatchingEngine` to guarantee atomic matching operations.
+- [x] Protected critical section covering book access, matching, trade execution, and book mutation.
+- [x] Guarantee unconditional lock release using `try/finally`.
+- [x] Eliminate race conditions when concurrent orders target the shared order-book state.
+- [x] Multi-threaded concurrent order execution test suite (`MatchingEngineConcurrencyTest` and `OrderServiceTest`).
 
 ---
 

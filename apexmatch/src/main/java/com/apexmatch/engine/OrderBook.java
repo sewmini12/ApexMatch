@@ -47,4 +47,24 @@ public class OrderBook {
     public Order removeBestSell() {
         return sellOrders.poll();
     }
+
+    public int getBuyOrderCount() {
+        return buyOrders.size();
+    }
+
+    public int getSellOrderCount() {
+        return sellOrders.size();
+    }
+
+    public long getTotalBuyQuantity() {
+        return buyOrders.stream().mapToLong(Order::getQuantity).sum();
+    }
+
+    public long getTotalSellQuantity() {
+        return sellOrders.stream().mapToLong(Order::getQuantity).sum();
+    }
+
+    public boolean isEmpty() {
+        return buyOrders.isEmpty() && sellOrders.isEmpty();
+    }
 }

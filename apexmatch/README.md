@@ -168,13 +168,14 @@ For comprehensive database architecture and schema details, see [docs/DATABASE.m
 
 ## Testing
 
-The test suite covers matching rules, order validations, and edge cases:
+The test suite covers matching rules, order validations, edge cases, and concurrency safety:
 - 12 unit tests for `MatchingEngine` (market buys, limit matches, priority rules, FIFO tie-breaking, partial fills, multiple matches, symbol isolation).
 - 12 unit tests for `OrderValidator` (null orders, invalid prices, negative quantities, boundary conditions).
-- 2 unit tests for `OrderService` (Bob & Alice scenario and trade persistence verification via `TradeRepository`).
+- 3 unit tests for `OrderService` (Bob & Alice matching scenario, validation failures, and concurrent order processing).
 - 2 web MVC tests for `OrderController` (REST API JSON serialization and endpoint status verification).
+- 4 multi-threaded concurrency tests in `MatchingEngineConcurrencyTest` (competing buyers for limited liquidity, symmetric two-sided markets, cross-symbol isolation under concurrency, and lock release safety).
 
-Run all 28 tests via Maven:
+Run all 33 tests via Maven:
 ```bash
 mvn clean test
 ```
