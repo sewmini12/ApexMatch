@@ -9,6 +9,9 @@ com\apexmatch\validation\OrderValidator.class
 com\apexmatch\controller\OrderController.class
 com\apexmatch\ApexMatchApplication.class
 com\apexmatch\Main.class
+com\apexmatch\config\OpenApiConfig.class
 com\apexmatch\model\Trade.class
 com\apexmatch\model\OrderSide.class
 com\apexmatch\model\OrderType.class
+com\apexmatch\controller\GlobalExceptionHandler.class
+com\apexmatch\dto\ErrorResponse.class

@@ -1,5 +1,8 @@
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\ApexMatchApplication.java
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\config\OpenApiConfig.java
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\controller\GlobalExceptionHandler.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\controller\OrderController.java
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\dto\ErrorResponse.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\dto\OrderRequest.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\engine\MatchingEngine.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\main\java\com\apexmatch\engine\OrderBook.java

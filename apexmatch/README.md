@@ -218,11 +218,29 @@ java -cp target/classes com.apexmatch.Main
 
 ---
 
+## Swagger / OpenAPI Documentation
+
+ApexMatch provides interactive API documentation via Springdoc OpenAPI 3:
+
+* **Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
+* **OpenAPI Specification (JSON)**: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+### Testing via Swagger UI:
+1. Start the application: `mvn spring-boot:run`.
+2. Open [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) in your browser.
+3. Expand the **Orders** section (`POST /api/orders`).
+4. Click **Try it out**, fill in the order payload (e.g. `userId`, `symbol`, `side`, `type`, `price`, `quantity`), and click **Execute** to view real-time trade matching results directly in the UI.
+
+---
+
 ## Project Roadmap
 
-- **Phase 4**: Bean Validation (`@Valid`) and global exception handling (`@RestControllerAdvice`).
-- **Phase 5**: Thread safety and concurrency with per-symbol `ReentrantLock` instances.
-- **Phase 6**: Asynchronous database persistence using worker queues / Spring `@Async`.
-- **Phase 7**: OpenAPI/Swagger documentation, Docker containerization, and Testcontainers.
+- **Phase 1**: In-memory domain models, OrderBook, Price-Time Priority matching. (Completed)
+- **Phase 2**: Spring Boot REST API for order ingestion. (Completed)
+- **Phase 3**: PostgreSQL database integration & trade persistence. (Completed)
+- **Phase 4**: Bean validation and global exception handling. (Completed)
+- **Phase 5**: Concurrency & thread safety via `ReentrantLock`. (Completed)
+- **Phase 6**: OpenAPI / Swagger UI interactive documentation. (Completed)
+- **Phase 7**: Asynchronous database persistence & containerization. (Future)
 
 See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) and [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for progress tracking.
