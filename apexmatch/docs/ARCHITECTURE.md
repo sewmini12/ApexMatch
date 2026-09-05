@@ -116,9 +116,35 @@ In financial exchange architectures:
 
 ---
 
-## 5. Future Concurrency Architecture
+## 5. Concurrency Architecture & Thread Safety
 
-While Phase 2/3 focuses on establishing a rock-solid single-node REST-to-Database pipeline, the concurrency roadmap introduces:
-- **Symbol-Level Partitioning / Sharding**: Distinct order books per ticker symbol (e.g., AAPL order book, TSLA order book) protected by dedicated `ReentrantLock` instances. This allows non-interfering parallel execution of orders across different stocks.
-- **Thread Pool Orchestration**: Spring `@Async` or dedicated `ExecutorService` thread pools for processing incoming requests.
-- **Asynchronous Persistence**: Detaching PostgreSQL persistence from the critical matching path using disruptor rings, worker queues, or reactive drivers so that database latency never blocks price-time matching.
+ApexMatch protects the shared in-memory order book state using Java's `java.util.concurrent.locks.ReentrantLock`.
+
+### 5.1 ReentrantLock Critical Section
+When concurrent HTTP requests arrive via the REST API, multiple threads invoke `MatchingEngine.submitOrder(Order)`:
+- **Lock Acquisition**: `lock.lock()` is acquired immediately prior to evaluating counter-orders in the `OrderBook`.
+- **Protected Critical Section**:
+  - Scanning and peeking at opposite counter-orders (`getBestSell` / `getBestBuy`).
+  - Cross-symbol validation.
+  - Limit and market price feasibility checks.
+  - Partial fill quantity computations and trade object generation.
+  - Dequeuing filled orders (`removeBestSell` / `removeBestBuy`).
+  - Inserting any unfulfilled LIMIT remainder into the order book (`addOrder`).
+- **Guaranteed Release**: `try / finally` ensures that `lock.unlock()` is unconditionally executed even if an unexpected exception occurs.
+
+```java
+lock.lock();
+try {
+    // 1. Access and search counter-orders
+    // 2. Execute trades and calculate remaining balances
+    // 3. Update or remove orders from queues
+    // 4. Enqueue unfulfilled remainder
+    return trades;
+} finally {
+    lock.unlock();
+}
+```
+
+### 5.2 Future Concurrency Enhancements
+- **Symbol-Level Partitioning / Sharding**: Dedicated `OrderBook` and `ReentrantLock` instances per ticker symbol (e.g. separate AAPL lock, TSLA lock) to allow parallel matching across independent stocks.
+- **Asynchronous Persistence**: Offloading PostgreSQL writes from the matching loop to a decoupled worker queue or ring buffer.

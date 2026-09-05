@@ -98,4 +98,37 @@ public class OrderServiceTest {
         assertThrows(IllegalArgumentException.class, () -> orderService.processOrder(invalidRequest));
         verify(tradeRepository, never()).saveAll(anyList());
     }
+
+    @Test
+    void concurrentOrderProcessingShouldPersistAllExecutedTradesSafely() throws Exception {
+        int threads = 20;
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(8);
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        java.util.List<java.util.concurrent.Future<List<Trade>>> futures = new java.util.ArrayList<>();
+
+        // 10 BUY orders and 10 SELL orders at matching price
+        for (int i = 1; i <= threads; i++) {
+            final int id = i;
+            futures.add(pool.submit(() -> {
+                latch.await();
+                OrderRequest req = new OrderRequest();
+                req.setUserId("USER_" + id);
+                req.setSymbol("AAPL");
+                req.setSide((id % 2 == 0) ? OrderSide.BUY : OrderSide.SELL);
+                req.setType(OrderType.LIMIT);
+                req.setPrice(new BigDecimal("100.00"));
+                req.setQuantity(10);
+                return orderService.processOrder(req);
+            }));
+        }
+
+        latch.countDown();
+        for (java.util.concurrent.Future<List<Trade>> f : futures) {
+            f.get(5, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        pool.shutdown();
+
+        assertTrue(orderBook.isEmpty(), "Order book should be empty after symmetric concurrent matching");
+        verify(tradeRepository, atLeastOnce()).saveAll(anyList());
+    }
 }
