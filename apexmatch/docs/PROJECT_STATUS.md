@@ -16,22 +16,21 @@ Current status of development, components, and architectural roadmap for ApexMat
 - [x] REST Controller (`OrderController`)
 - [x] OrderRequest DTO (`OrderRequest`)
 - [x] Service layer (`OrderService`)
-- [ ] Complete API -> MatchingEngine integration (fixing package/constructor issues)
-- [ ] PostgreSQL connection configuration (`application.properties`)
-- [ ] Trade persistence (`TradeEntity`, `TradeRepository`)
+- [x] Complete API -> MatchingEngine integration
+- [x] PostgreSQL connection configuration (`application.properties` with environment variables)
+- [x] Trade persistence (`TradeEntity`, `TradeRepository`)
+- [x] Integration / Controller testing (`OrderControllerTest` via MockMvc, `OrderServiceTest` via Mockito)
 - [ ] Exception handling (`@ControllerAdvice`)
 - [ ] Request validation (Bean validation annotations)
 - [ ] Concurrency controls (`ReentrantLock`, thread-safe order processing)
 - [ ] Async persistence (Spring `@Async` / decoupled event stream)
-- [ ] Integration tests (`@SpringBootTest` / MockMvc)
 - [ ] Swagger / OpenAPI documentation
 - [ ] Docker containerization
-- [x] Architecture and API documentation
+- [x] Architecture, API, and Database documentation
 
 ---
 
-## Current Work in Progress (Active Session)
-- Resolving package declaration mismatches between model, engine, service, and controller classes.
-- Standardizing DTO imports and entity definitions.
-- Wiring `TradeRepository` with PostgreSQL JPA configuration.
-- Verifying the end-to-end execution flow: Postman -> `OrderController` -> `OrderService` -> `MatchingEngine` -> `OrderBook` -> `Trade` -> `PostgreSQL`.
+## Active Milestone: PostgreSQL / Neon Verification
+- All 28 automated tests passing (`mvn clean test`).
+- Package mismatches and duplicate classes resolved.
+- Ready for live Neon database link connection.

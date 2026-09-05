@@ -136,18 +136,33 @@ For full API specifications, see [docs/API.md](docs/API.md).
 
 ---
 
-## Database Configuration
+## Database Configuration (Neon PostgreSQL)
 
-PostgreSQL connection settings are defined in `src/main/resources/application.properties` with environment variable overrides:
+ApexMatch connects to PostgreSQL (such as [Neon](https://neon.tech)) via Spring Data JPA. Database credentials are read from environment variables:
 
 ```properties
-spring.datasource.url=jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:apexmatch}
-spring.datasource.username=${DB_USER:postgres}
-spring.datasource.password=${DB_PASSWORD:postgres}
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+spring.datasource.driver-class-name=org.postgresql.Driver
+
 spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
 ```
 
-For database schema and setup guidelines, see [docs/DATABASE.md](docs/DATABASE.md).
+To configure your Neon database:
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Set your Neon connection parameters:
+   ```env
+   DB_URL=jdbc:postgresql://ep-your-host.region.aws.neon.tech/neondb?sslmode=require
+   DB_USERNAME=your_username
+   DB_PASSWORD=your_neon_password
+   ```
+
+For comprehensive database architecture and schema details, see [docs/DATABASE.md](docs/DATABASE.md).
 
 ---
 
@@ -156,8 +171,10 @@ For database schema and setup guidelines, see [docs/DATABASE.md](docs/DATABASE.m
 The test suite covers matching rules, order validations, and edge cases:
 - 12 unit tests for `MatchingEngine` (market buys, limit matches, priority rules, FIFO tie-breaking, partial fills, multiple matches, symbol isolation).
 - 12 unit tests for `OrderValidator` (null orders, invalid prices, negative quantities, boundary conditions).
+- 2 unit tests for `OrderService` (Bob & Alice scenario and trade persistence verification via `TradeRepository`).
+- 2 web MVC tests for `OrderController` (REST API JSON serialization and endpoint status verification).
 
-Run tests via Maven:
+Run all 28 tests via Maven:
 ```bash
 mvn clean test
 ```
@@ -169,20 +186,33 @@ mvn clean test
 ### Prerequisites
 - JDK 21+ installed and configured on `PATH`
 - Maven 3.8+
-- PostgreSQL (optional for pure unit testing, required for REST persistence)
+- Neon PostgreSQL connection details (or any PostgreSQL instance)
 
 ### Running the Application
-```bash
-# Build the application
-mvn clean package -DskipTests
 
-# Run Spring Boot
+Set your environment variables and start Spring Boot:
+
+**Windows PowerShell:**
+```powershell
+$env:DB_URL="jdbc:postgresql://ep-your-host.region.aws.neon.tech/neondb?sslmode=require"
+$env:DB_USERNAME="your_username"
+$env:DB_PASSWORD="your_password"
+
 mvn spring-boot:run
 ```
 
-Or run the standalone demonstration:
+**Linux / macOS:**
 ```bash
-mvn exec:java -Dexec.mainClass="com.apexmatch.Main"
+export DB_URL="jdbc:postgresql://ep-your-host.region.aws.neon.tech/neondb?sslmode=require"
+export DB_USERNAME="your_username"
+export DB_PASSWORD="your_password"
+
+mvn spring-boot:run
+```
+
+Or run the standalone in-memory demonstration without a database:
+```bash
+java -cp target/classes com.apexmatch.Main
 ```
 
 ---
