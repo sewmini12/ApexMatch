@@ -41,25 +41,28 @@ This document defines the iterative roadmap for developing ApexMatch from a core
 
 ---
 
-## Phase 5 — Concurrency & Thread Safety (Completed)
+## Phase 5 — Concurrency, Thread Safety & Multi-Symbol Architecture (Completed)
 - [x] Introduce explicit `ReentrantLock` in `MatchingEngine` to guarantee atomic matching operations.
 - [x] Protected critical section covering book access, matching, trade execution, and book mutation.
 - [x] Guarantee unconditional lock release using `try/finally`.
 - [x] Eliminate race conditions when concurrent orders target the shared order-book state.
-- [x] Multi-threaded concurrent order execution test suite (`MatchingEngineConcurrencyTest` and `OrderServiceTest`).
+- [x] Multi-Symbol architecture via `OrderBookManager` and `ConcurrentHashMap<String, OrderBook>`.
+- [x] Per-symbol `ReentrantLock` partitioning to enable high-concurrency cross-symbol matching without lock contention.
+- [x] Multi-threaded concurrent order execution test suite (`MatchingEngineConcurrencyTest`, `MultiSymbolOrderBookTest`, and `OrderServiceTest`).
 
 ---
 
-## Phase 6 — Asynchronous Persistence (Future)
+## Phase 6 — OpenAPI / Swagger Documentation (Completed)
+- [x] Springdoc OpenAPI 3 integration (`springdoc-openapi-starter-webmvc-ui`).
+- [x] Interactive Swagger UI at `/swagger-ui/index.html`.
+- [x] OpenAPI 3.1 JSON endpoint at `/v3/api-docs`.
+- [x] Complete DTO and endpoint schemas with request body examples and response models.
+
+---
+
+## Phase 7 — Asynchronous Persistence & Containerization (Future)
 - [ ] Decouple trade persistence from the critical matching loop using Spring `@Async` or an event publisher (Disruptor / LMAX pattern).
 - [ ] Guarantee matching engine microsecond response times independent of database latency.
-- [ ] Resilient retry and dead-letter handling for database write failures.
-
----
-
-## Phase 7 — Production Polish & Containerization (Future)
-- [ ] OpenAPI 3 / Swagger documentation and Swagger UI.
-- [ ] Structured JSON logging (SLF4J / Logback) with correlation IDs.
 - [ ] Multi-stage `Dockerfile` and `docker-compose.yml` bundling Spring Boot and PostgreSQL.
 - [ ] End-to-end integration test suite using Testcontainers.
 - [ ] Performance benchmarking and documentation.

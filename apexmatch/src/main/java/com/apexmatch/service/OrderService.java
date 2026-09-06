@@ -2,6 +2,7 @@ package com.apexmatch.service;
 
 import com.apexmatch.dto.OrderRequest;
 import com.apexmatch.engine.MatchingEngine;
+import com.apexmatch.engine.OrderBookManager;
 import com.apexmatch.entity.TradeEntity;
 import com.apexmatch.model.Order;
 import com.apexmatch.model.Trade;
@@ -40,10 +41,15 @@ public class OrderService {
         String orderId = "ORD-" + orderCounter.getAndIncrement();
         long sequenceNumber = sequenceCounter.getAndIncrement();
 
+        String rawSymbol = request.getSymbol();
+        String symbol = (rawSymbol != null && !rawSymbol.isBlank())
+                ? OrderBookManager.normalizeSymbol(rawSymbol)
+                : rawSymbol;
+
         Order order = new Order(
                 orderId,
                 request.getUserId(),
-                request.getSymbol(),
+                symbol,
                 request.getSide(),
                 request.getType(),
                 request.getPrice(),

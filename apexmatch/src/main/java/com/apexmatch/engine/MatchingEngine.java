@@ -16,27 +16,50 @@ import java.util.concurrent.locks.ReentrantLock;
 @Service
 public class MatchingEngine {
 
-    private final OrderBook orderBook;
-    private final ReentrantLock lock;
+    private final OrderBookManager orderBookManager;
+    private final ReentrantLock customLock;
     private final AtomicLong tradeCounter = new AtomicLong(1);
+    private volatile ReentrantLock lastAcquiredLock;
 
     @Autowired
-    public MatchingEngine(OrderBook orderBook) {
-        this(orderBook, new ReentrantLock());
+    public MatchingEngine(OrderBookManager orderBookManager) {
+        this(orderBookManager, null);
     }
 
-    public MatchingEngine(OrderBook orderBook, ReentrantLock lock) {
-        this.orderBook = orderBook;
-        this.lock = lock;
+    public MatchingEngine(OrderBookManager orderBookManager, ReentrantLock customLock) {
+        this.orderBookManager = orderBookManager;
+        this.customLock = customLock;
+        if (customLock != null) {
+            this.lastAcquiredLock = customLock;
+        }
+    }
+
+    public MatchingEngine(OrderBook orderBook) {
+        this(new OrderBookManager(orderBook), new ReentrantLock());
+    }
+
+    public MatchingEngine(OrderBook orderBook, ReentrantLock customLock) {
+        this(new OrderBookManager(orderBook), customLock);
     }
 
     public List<Trade> submitOrder(Order incomingOrder) {
-        lock.lock();
+        if (incomingOrder == null) {
+            throw new IllegalArgumentException("Order cannot be null");
+        }
+        if (incomingOrder.getSymbol() == null || incomingOrder.getSymbol().isBlank()) {
+            throw new IllegalArgumentException("Symbol cannot be empty");
+        }
+
+        String symbol = OrderBookManager.normalizeSymbol(incomingOrder.getSymbol());
+        ReentrantLock lockToUse = (customLock != null) ? customLock : orderBookManager.getLockForSymbol(symbol);
+
+        lockToUse.lock();
+        this.lastAcquiredLock = lockToUse;
         try {
+            OrderBook orderBook = orderBookManager.getOrCreateOrderBook(symbol);
             List<Trade> trades = new ArrayList<>();
 
             while (incomingOrder.getQuantity() > 0) {
-
                 Order oppositeOrder;
 
                 if (incomingOrder.getSide() == OrderSide.BUY) {
@@ -50,9 +73,8 @@ public class MatchingEngine {
                     break;
                 }
 
-                // Different stock
-                if (!incomingOrder.getSymbol()
-                        .equals(oppositeOrder.getSymbol())) {
+                // Defensive symbol check for legacy shared books
+                if (!symbol.equals(OrderBookManager.normalizeSymbol(oppositeOrder.getSymbol()))) {
                     break;
                 }
 
@@ -61,14 +83,12 @@ public class MatchingEngine {
                         oppositeOrder.getType() == OrderType.LIMIT) {
 
                     if (incomingOrder.getSide() == OrderSide.BUY &&
-                            incomingOrder.getPrice()
-                                    .compareTo(oppositeOrder.getPrice()) < 0) {
+                            incomingOrder.getPrice().compareTo(oppositeOrder.getPrice()) < 0) {
                         break;
                     }
 
                     if (incomingOrder.getSide() == OrderSide.SELL &&
-                            incomingOrder.getPrice()
-                                    .compareTo(oppositeOrder.getPrice()) > 0) {
+                            incomingOrder.getPrice().compareTo(oppositeOrder.getPrice()) > 0) {
                         break;
                     }
                 }
@@ -93,7 +113,7 @@ public class MatchingEngine {
 
                 Trade trade = new Trade(
                         "TRD-" + tradeCounter.getAndIncrement(),
-                        incomingOrder.getSymbol(),
+                        symbol,
                         buyer,
                         seller,
                         tradePrice,
@@ -111,7 +131,6 @@ public class MatchingEngine {
                 );
 
                 if (oppositeOrder.getQuantity() == 0) {
-
                     if (oppositeOrder.getSide() == OrderSide.BUY) {
                         orderBook.removeBestBuy();
                     } else {
@@ -120,9 +139,8 @@ public class MatchingEngine {
                 }
             }
 
-            // Remaining incoming order goes into the book
+            // Remaining incoming order goes into the symbol's order book
             if (incomingOrder.getQuantity() > 0) {
-
                 if (incomingOrder.getType() == OrderType.LIMIT) {
                     orderBook.addOrder(incomingOrder);
                 }
@@ -130,15 +148,41 @@ public class MatchingEngine {
 
             return trades;
         } finally {
-            lock.unlock();
+            lockToUse.unlock();
         }
     }
 
-    public ReentrantLock getLock() {
-        return lock;
+    public OrderBookManager getOrderBookManager() {
+        return orderBookManager;
+    }
+
+    public OrderBook getOrderBook(String symbol) {
+        return orderBookManager.getOrderBook(symbol);
     }
 
     public OrderBook getOrderBook() {
-        return orderBook;
+        if (orderBookManager.getDefaultBook() != null) {
+            return orderBookManager.getDefaultBook();
+        }
+        if (orderBookManager.hasOrderBook("AAPL")) {
+            return orderBookManager.getOrderBook("AAPL");
+        }
+        return orderBookManager.getActiveSymbols().isEmpty()
+                ? null
+                : orderBookManager.getOrderBook(orderBookManager.getActiveSymbols().iterator().next());
+    }
+
+    public ReentrantLock getLock(String symbol) {
+        return (customLock != null) ? customLock : orderBookManager.getLockForSymbol(symbol);
+    }
+
+    public ReentrantLock getLock() {
+        if (lastAcquiredLock != null) {
+            return lastAcquiredLock;
+        }
+        if (customLock != null) {
+            return customLock;
+        }
+        return orderBookManager.getLockForSymbol("AAPL");
     }
 }
