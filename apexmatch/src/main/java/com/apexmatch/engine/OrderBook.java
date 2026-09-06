@@ -10,6 +10,8 @@ import java.util.PriorityQueue;
 @Component
 public class OrderBook {
 
+    private final String symbol;
+
     private final PriorityQueue<Order> buyOrders =
             new PriorityQueue<>(
                     Comparator.comparing(Order::getPrice)
@@ -22,6 +24,18 @@ public class OrderBook {
                     Comparator.comparing(Order::getPrice)
                             .thenComparing(Order::getSequenceNumber)
             );
+
+    public OrderBook() {
+        this(null);
+    }
+
+    public OrderBook(String symbol) {
+        this.symbol = symbol;
+    }
+
+    public String getSymbol() {
+        return symbol;
+    }
 
     public void addOrder(Order order) {
 

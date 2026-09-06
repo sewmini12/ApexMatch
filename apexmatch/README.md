@@ -32,35 +32,45 @@ ApexMatch is an electronic stock order matching engine developed with Java 21 an
 
 ## Architecture Overview
 
-ApexMatch processes orders through decoupled layers:
+ApexMatch processes orders through decoupled layers with dedicated order books per symbol:
 
 ```text
                     POSTMAN / CLIENT
-                           |
-                           v
+                           │
+                           ▼
                     OrderController     (REST Endpoint)
-                           |
-                           v
+                           │
+                           ▼
                      OrderService       (Sequence generation & Orchestration)
-                           |
-                           v
-                    MatchingEngine      (Price-Time Matching Logic)
-                           |
-                           v
-                      OrderBook         (Dual PriorityQueue Heaps)
-                           |
-                           v
+                           │
+                           ▼
+                    MatchingEngine      (Per-Symbol ReentrantLock & Matching Logic)
+                           │
+                           ▼
+                  OrderBookManager      (ConcurrentHashMap<String, OrderBook>)
+                  ├── AAPL ──► OrderBook (Max-Buy / Min-Sell PriorityQueues)
+                  ├── GOOG ──► OrderBook (Max-Buy / Min-Sell PriorityQueues)
+                  ├── TSLA ──► OrderBook (Max-Buy / Min-Sell PriorityQueues)
+                  └── ...  ──► OrderBook
+                           │
+                           ▼
                          Trade          (Domain Trade Record)
-                           |
-                           v
+                           │
+                           ▼
                       TradeEntity       (JPA Entity)
-                           |
-                           v
+                           │
+                           ▼
                     TradeRepository     (Spring Data JPA)
-                           |
-                           v
+                           │
+                           ▼
                       PostgreSQL        (Persistent Storage)
 ```
+
+### Why Separate Order Books are Necessary in an Exchange
+
+1. **Strict Symbol Isolation**: A financial exchange lists thousands of securities. A BUY order for `AAPL` must never be compared or matched against a SELL order for `GOOG`. Independent books eliminate any possibility of cross-symbol cross-matching.
+2. **Algorithmic Correctness**: Price-Time Priority heaps (`PriorityQueue`) sort orders by price and sequence number. Mixing symbols in a single heap corrupts price discovery because high-priced assets (e.g. `GOOG` at $2800) would unfairly preempt lower-priced assets (e.g. `AAPL` at $150).
+3. **High-Performance Parallelism**: Dedicated order books allow the engine to apply per-symbol `ReentrantLock` instances. Orders for `AAPL` and `TSLA` execute simultaneously on different CPU cores without contention or thread blocking.
 
 For complete architectural details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -168,14 +178,16 @@ For comprehensive database architecture and schema details, see [docs/DATABASE.m
 
 ## Testing
 
-The test suite covers matching rules, order validations, edge cases, and concurrency safety:
+The test suite covers matching rules, order validations, edge cases, multi-symbol architecture, and concurrency safety:
 - 12 unit tests for `MatchingEngine` (market buys, limit matches, priority rules, FIFO tie-breaking, partial fills, multiple matches, symbol isolation).
 - 12 unit tests for `OrderValidator` (null orders, invalid prices, negative quantities, boundary conditions).
 - 3 unit tests for `OrderService` (Bob & Alice matching scenario, validation failures, and concurrent order processing).
 - 2 web MVC tests for `OrderController` (REST API JSON serialization and endpoint status verification).
 - 4 multi-threaded concurrency tests in `MatchingEngineConcurrencyTest` (competing buyers for limited liquidity, symmetric two-sided markets, cross-symbol isolation under concurrency, and lock release safety).
+- 7 unit tests for `OrderBookManagerTest` (symbol normalization, dynamic book creation, lookup, active symbol tracking, per-symbol lock independence, and book reset).
+- 6 multi-symbol integration tests in `MultiSymbolOrderBookTest` (same-symbol matching, cross-symbol rejection, multi-symbol isolation, independent price-time priority, partial fills per symbol, and 160-thread concurrent multi-symbol execution).
 
-Run all 33 tests via Maven:
+Run all 46 tests via Maven:
 ```bash
 mvn clean test
 ```

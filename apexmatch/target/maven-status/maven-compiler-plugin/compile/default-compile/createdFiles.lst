@@ -7,6 +7,7 @@ com\apexmatch\model\Order.class
 com\apexmatch\engine\OrderBook.class
 com\apexmatch\validation\OrderValidator.class
 com\apexmatch\controller\OrderController.class
+com\apexmatch\engine\OrderBookManager.class
 com\apexmatch\ApexMatchApplication.class
 com\apexmatch\Main.class
 com\apexmatch\config\OpenApiConfig.class
