@@ -1,7 +1,12 @@
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\benchmark\MatchingEngineBatchBenchmark.java
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\benchmark\MatchingEngineBenchmark.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\controller\OrderControllerTest.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\engine\MatchingEngineConcurrencyTest.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\engine\MultiSymbolOrderBookTest.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\engine\OrderBookManagerTest.java
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\integration\OrderControllerIntegrationTest.java
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\integration\TradePersistenceIntegrationTest.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\MatchingEngineTest.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\OrderValidatorTest.java
 D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\service\OrderServiceTest.java
+D:\repo folders\ApexMatch\ApexMatch\apexmatch\src\test\java\com\apexmatch\stress\MatchingEngineStressTest.java

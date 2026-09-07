@@ -1,0 +1,29 @@
+# Build output
+target/
+*.class
+
+# Version control
+.git/
+.gitignore
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Environment files and credentials
+.env
+.env.*
+!.env.example
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Documentation and markdown
+docs/
+*.md

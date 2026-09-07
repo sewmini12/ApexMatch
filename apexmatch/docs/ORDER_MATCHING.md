@@ -1,5 +1,7 @@
 # ApexMatch Order Matching Algorithm
 
+> **Note**: For an exhaustive deep-dive with step-by-step trader scenarios (Alice, Bob, Charlie, David, Emma), heap sorting mechanics, complexity tables, and production L2/L3 trade-offs, see the comprehensive guide: [MATCHING_ALGORITHM.md](file:///d:/repo%20folders/ApexMatch/ApexMatch/apexmatch/docs/MATCHING_ALGORITHM.md).
+
 ApexMatch implements a continuous electronic order matching engine utilizing the **Price-Time Priority (FIFO)** rule, the industry-standard algorithm used by major financial exchanges (e.g., NASDAQ, NYSE, LSE).
 
 ---

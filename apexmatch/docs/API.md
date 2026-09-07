@@ -1,94 +1,46 @@
 # ApexMatch REST API Specification
 
-ApexMatch provides a RESTful interface for submitting orders to the matching engine.
+ApexMatch exposes a high-performance RESTful API for submitting orders, executing trades, and querying market status.
 
 ---
 
-## 1. Submit Order Endpoint
+## 1. Interactive Swagger / OpenAPI Documentation
 
-- **Endpoint**: `/api/orders`
-- **HTTP Method**: `POST`
+When the ApexMatch server is running locally on port `8080`, comprehensive interactive documentation is accessible at:
+
+- **Swagger UI**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
+- **OpenAPI 3.0 JSON Spec**: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+---
+
+## 2. Order Submission Endpoint
+
+### `POST /api/orders`
+Submits an order to the in-memory matching engine. If matching counter-orders exist in the order book, trades execute immediately and are returned in the response while being persisted asynchronously to the PostgreSQL database. If unmatched or partially filled, any remaining balance of a `LIMIT` order enters the book.
+
 - **Content-Type**: `application/json`
-- **Description**: Submits a new BUY or SELL order to the matching engine. If compatible counter-orders exist in the order book, executions occur immediately and a list of generated trades is returned. If no counter-orders are available, or only partial fills occur, any remaining LIMIT order balance is added to the in-memory order book.
+- **Accept**: `application/json`
 
 ---
 
-## 2. Request Schema (`OrderRequest`)
+## 3. Request Schema (`OrderRequest`)
 
-| Field      | Type     | Required | Allowed Values    | Description                                              |
-|:-----------|:---------|:---------|:------------------|:---------------------------------------------------------|
-| `userId`   | String   | Yes      | Non-empty string  | Identifier of the trader placing the order               |
-| `symbol`   | String   | Yes      | Non-empty string  | Ticker symbol of the asset (e.g., `AAPL`)                |
-| `side`     | String   | Yes      | `BUY`, `SELL`     | Side of the market order                                 |
-| `type`     | String   | Yes      | `LIMIT`, `MARKET` | Execution order type                                     |
-| `price`    | Number   | Yes*     | Positive decimal  | Limit price (*Required for LIMIT, must be null for MARKET)|
-| `quantity` | Integer  | Yes      | Positive integer  | Number of shares to trade                                |
-
-*Note: Internal fields `orderId` and `sequenceNumber` are assigned automatically by the backend engine and are not accepted from the client.*
+| Field | Type | Validation Rule | Description |
+| :--- | :--- | :--- | :--- |
+| `userId` | `String` | `@NotBlank(message = "userId must not be blank")` | Identifier of the trader submitting the order (e.g. `"trader-101"`). |
+| `symbol` | `String` | `@NotBlank(message = "symbol must not be blank")` | Asset ticker symbol (e.g. `"AAPL"`, `"TSLA"`). Case-insensitive in engine. |
+| `side` | `Side` | `@NotNull(message = "side must be BUY or SELL")` | Order side: `BUY` or `SELL`. |
+| `type` | `OrderType` | `@NotNull(message = "type must be LIMIT or MARKET")` | Order execution type: `LIMIT` or `MARKET`. |
+| `price` | `BigDecimal` | Required & `> 0` for `LIMIT`; Must be `null` for `MARKET` | Execution limit price. Precision up to 4 decimal places. |
+| `quantity` | `Long` | `@NotNull`, `@Min(value = 1, message = "quantity must be > 0")` | Number of shares to execute. |
 
 ---
 
-## 3. Step-by-Step Scenario & Expected Matching Behavior
+## 4. Response Schemas
 
-### Step 1: Bob Submits a LIMIT SELL Order
-Bob submits a passive SELL order offering 60 shares of AAPL at $145.00:
+### 4.1 Success Response: HTTP 200 OK
+Returns a JSON array of zero or more `Trade` objects:
 
-#### Request:
-`POST /api/orders`
-```json
-{
-  "userId": "BOB",
-  "symbol": "AAPL",
-  "side": "SELL",
-  "type": "LIMIT",
-  "price": 145.00,
-  "quantity": 60
-}
-```
-
-#### Behavior:
-- The order book has no existing BUY orders.
-- No trade is executed.
-- Bob's order rests in the SELL book: `60 AAPL @ $145.00`.
-
-#### Response:
-- **HTTP Status**: `200 OK`
-- **Body**:
-```json
-[]
-```
-
----
-
-### Step 2: Alice Submits a LIMIT BUY Order
-Alice submits an aggressive BUY order for 100 shares of AAPL willing to pay up to $150.00:
-
-#### Request:
-`POST /api/orders`
-```json
-{
-  "userId": "ALICE",
-  "symbol": "AAPL",
-  "side": "BUY",
-  "type": "LIMIT",
-  "price": 150.00,
-  "quantity": 100
-}
-```
-
-#### Behavior:
-- The engine finds Bob's resting order: `60 AAPL @ $145.00`.
-- Price check: Alice's BUY limit (`$150.00`) $\ge$ Bob's SELL limit (`$145.00`). A match occurs.
-- **Execution Price**: `$145.00` (the price of the resting passive order).
-- **Execution Quantity**: `60` shares ($\min(100, 60)$).
-- **Trade Created**: Buyer `ALICE`, Seller `BOB`, Price `145.00`, Quantity `60`.
-- Bob's order is fully filled (0 remaining) and removed from the SELL book.
-- Alice's order is partially filled (40 remaining). Since Alice's order is a LIMIT order, the remaining `40 AAPL @ $150.00` is added to the BUY order book.
-- The trade is persisted to the database.
-
-#### Response:
-- **HTTP Status**: `200 OK`
-- **Body**:
 ```json
 [
   {
@@ -96,7 +48,90 @@ Alice submits an aggressive BUY order for 100 shares of AAPL willing to pay up t
     "symbol": "AAPL",
     "buyer": "ALICE",
     "seller": "BOB",
-    "price": 145.00,
+    "price": 149.50,
+    "quantity": 100
+  }
+]
+```
+*(An empty array `[]` indicates the order was successfully received and placed into the resting order book without immediate match).*
+
+### 4.2 Error Response: HTTP 400 Bad Request (`ErrorResponse`)
+When request parameters or business constraints fail validation, ApexMatch returns a structured error object:
+
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "timestamp": "2026-09-07T14:32:00.123",
+  "errors": {
+    "field": "Specific failure reason"
+  }
+}
+```
+
+---
+
+## 5. Concrete Request / Response Scenarios
+
+### Scenario 1: Successful LIMIT Order That Rests (No Counter-Orders)
+A trader places a passive sell order into an empty order book.
+
+**Request:**
+```http
+POST /api/orders HTTP/1.1
+Content-Type: application/json
+
+{
+  "userId": "ALICE",
+  "symbol": "AAPL",
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 150.00,
+  "quantity": 100
+}
+```
+
+**Response:**
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+[]
+```
+
+---
+
+### Scenario 2: Successful LIMIT Order That Matches Immediately
+A buyer arrives with a price willing to cross the resting ask (`$150.00 >= $150.00`).
+
+**Request:**
+```http
+POST /api/orders HTTP/1.1
+Content-Type: application/json
+
+{
+  "userId": "DAVID",
+  "symbol": "AAPL",
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 150.00,
+  "quantity": 60
+}
+```
+
+**Response:**
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+[
+  {
+    "tradeId": "TRD-1",
+    "symbol": "AAPL",
+    "buyer": "DAVID",
+    "seller": "ALICE",
+    "price": 150.00,
     "quantity": 60
   }
 ]
@@ -104,8 +139,182 @@ Alice submits an aggressive BUY order for 100 shares of AAPL willing to pay up t
 
 ---
 
-## 4. Response Status Codes
+### Scenario 3: Successful MARKET Order Executing Against the Book
+A buyer wants immediate liquidity regardless of price.
 
-- `200 OK`: Order processed successfully; returns an array of zero or more `Trade` objects.
-- `400 Bad Request`: (Planned) Request validation failure (e.g., negative quantity, missing user ID, or LIMIT order without price).
-- `500 Internal Server Error`: Unexpected server-side failure.
+**Request:**
+```http
+POST /api/orders HTTP/1.1
+Content-Type: application/json
+
+{
+  "userId": "EMMA",
+  "symbol": "AAPL",
+  "side": "BUY",
+  "type": "MARKET",
+  "price": null,
+  "quantity": 40
+}
+```
+
+**Response:**
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+[
+  {
+    "tradeId": "TRD-2",
+    "symbol": "AAPL",
+    "buyer": "EMMA",
+    "seller": "ALICE",
+    "price": 150.00,
+    "quantity": 40
+  }
+]
+```
+
+---
+
+### Scenario 4: Validation Failure — Missing Price on LIMIT Order
+A limit order submitted without specifying a price fails business validation.
+
+**Request:**
+```http
+POST /api/orders HTTP/1.1
+Content-Type: application/json
+
+{
+  "userId": "BOB",
+  "symbol": "AAPL",
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": null,
+  "quantity": 50
+}
+```
+
+**Response:**
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "timestamp": "2026-09-07T14:35:10.450",
+  "errors": {
+    "price": "Price must be provided for LIMIT orders"
+  }
+}
+```
+
+---
+
+### Scenario 5: Validation Failure — Price Provided on MARKET Order
+A market order submitted with a price violates the market order definition.
+
+**Request:**
+```http
+POST /api/orders HTTP/1.1
+Content-Type: application/json
+
+{
+  "userId": "BOB",
+  "symbol": "AAPL",
+  "side": "BUY",
+  "type": "MARKET",
+  "price": 150.00,
+  "quantity": 50
+}
+```
+
+**Response:**
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "timestamp": "2026-09-07T14:36:00.112",
+  "errors": {
+    "price": "Price must be null for MARKET orders"
+  }
+}
+```
+
+---
+
+### Scenario 6: Validation Failure — Zero or Negative Quantity
+Quantity must be strictly positive ($> 0$).
+
+**Request:**
+```http
+POST /api/orders HTTP/1.1
+Content-Type: application/json
+
+{
+  "userId": "BOB",
+  "symbol": "AAPL",
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 150.00,
+  "quantity": 0
+}
+```
+
+**Response:**
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "timestamp": "2026-09-07T14:37:05.789",
+  "errors": {
+    "quantity": "quantity must be > 0"
+  }
+}
+```
+
+---
+
+### Scenario 7: Validation Failure — Blank User ID or Symbol
+Jakarta Bean Validation rejects empty or whitespace-only identification fields.
+
+**Request:**
+```http
+POST /api/orders HTTP/1.1
+Content-Type: application/json
+
+{
+  "userId": "   ",
+  "symbol": "",
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 150.00,
+  "quantity": 100
+}
+```
+
+**Response:**
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "timestamp": "2026-09-07T14:38:22.014",
+  "errors": {
+    "userId": "userId must not be blank",
+    "symbol": "symbol must not be blank"
+  }
+}
+```

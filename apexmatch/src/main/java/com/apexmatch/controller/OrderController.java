@@ -54,7 +54,7 @@ public class OrderController {
                     description = "Order submission payload specifying user, symbol, side, type, price, and quantity",
                     required = true
             )
-            @RequestBody OrderRequest request) {
+            @jakarta.validation.Valid @RequestBody OrderRequest request) {
 
         return orderService.processOrder(request);
     }
