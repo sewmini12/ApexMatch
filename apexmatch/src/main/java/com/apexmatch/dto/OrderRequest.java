@@ -3,12 +3,17 @@ package com.apexmatch.dto;
 import com.apexmatch.model.OrderSide;
 import com.apexmatch.model.OrderType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
 @Schema(description = "Order submission request payload")
 public class OrderRequest {
 
+    @NotBlank(message = "User ID cannot be empty")
     @Schema(
             description = "Unique user or account identifier placing the order",
             example = "USER-101",
@@ -16,6 +21,7 @@ public class OrderRequest {
     )
     private String userId;
 
+    @NotBlank(message = "Symbol cannot be empty")
     @Schema(
             description = "Stock ticker symbol to trade (e.g. AAPL, TSLA, MSFT)",
             example = "AAPL",
@@ -23,6 +29,7 @@ public class OrderRequest {
     )
     private String symbol;
 
+    @NotNull(message = "Order side cannot be null")
     @Schema(
             description = "Order side (BUY to purchase, SELL to liquidate)",
             example = "BUY",
@@ -30,6 +37,7 @@ public class OrderRequest {
     )
     private OrderSide side;
 
+    @NotNull(message = "Order type cannot be null")
     @Schema(
             description = "Order execution type: LIMIT (requires limit price) or MARKET (executes at best available resting price)",
             example = "LIMIT",
@@ -37,12 +45,14 @@ public class OrderRequest {
     )
     private OrderType type;
 
+    @DecimalMin(value = "0.01", message = "Limit order price must be greater than zero")
     @Schema(
             description = "Limit price per share. Required and must be positive for LIMIT orders; must be omitted or null for MARKET orders.",
             example = "150.00"
     )
     private BigDecimal price;
 
+    @Positive(message = "Quantity must be greater than zero")
     @Schema(
             description = "Number of shares to trade. Must be a strictly positive integer.",
             example = "100",

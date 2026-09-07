@@ -1,13 +1,15 @@
 package com.apexmatch.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Schema(description = "Standard structured error response")
 public class ErrorResponse {
 
-    @Schema(description = "Timestamp when the error occurred", example = "2026-09-05T18:30:00")
+    @Schema(description = "Timestamp when the error occurred", example = "2026-09-06T13:30:00")
     private LocalDateTime timestamp;
 
     @Schema(description = "HTTP status code", example = "400")
@@ -16,17 +18,26 @@ public class ErrorResponse {
     @Schema(description = "HTTP status reason / error category", example = "Bad Request")
     private String error;
 
-    @Schema(description = "Descriptive error message", example = "Quantity must be greater than zero")
+    @Schema(description = "Descriptive error message", example = "Request validation failed")
     private String message;
+
+    @Schema(description = "Map of field-specific validation errors", example = "{\"quantity\": \"Quantity must be greater than zero\"}")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Map<String, String> fieldErrors;
 
     public ErrorResponse() {
     }
 
     public ErrorResponse(LocalDateTime timestamp, int status, String error, String message) {
+        this(timestamp, status, error, message, null);
+    }
+
+    public ErrorResponse(LocalDateTime timestamp, int status, String error, String message, Map<String, String> fieldErrors) {
         this.timestamp = timestamp;
         this.status = status;
         this.error = error;
         this.message = message;
+        this.fieldErrors = fieldErrors;
     }
 
     public LocalDateTime getTimestamp() {
@@ -59,5 +70,13 @@ public class ErrorResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public Map<String, String> getFieldErrors() {
+        return fieldErrors;
+    }
+
+    public void setFieldErrors(Map<String, String> fieldErrors) {
+        this.fieldErrors = fieldErrors;
     }
 }

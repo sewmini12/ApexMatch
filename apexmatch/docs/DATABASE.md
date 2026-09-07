@@ -1,186 +1,162 @@
-# ApexMatch Database Documentation: PostgreSQL & Neon Integration
+# ApexMatch Database Documentation: PostgreSQL Persistence & Ledger Design
 
-ApexMatch uses **PostgreSQL** hosted on **Neon** as the persistent relational database for recording executed trades and audit history, accessed through **Spring Data JPA** and **Hibernate**.
+ApexMatch uses **PostgreSQL** as an immutable audit ledger for executed trades, accessed through **Spring Data JPA** and **Hibernate**.
 
 ---
 
-## 1. Architectural Pipeline & Responsibilities
+## 1. Architectural Philosophy: In-Memory Engine vs. Relational Ledger
 
-The system maintains a strict separation of concerns between real-time, microsecond-latency in-memory matching and durable relational persistence:
+A core architectural principle of ApexMatch is the strict separation between **real-time matching** and **durable trade persistence**:
 
-```text
-       +-------------------------+
-       |        OrderBook        |   (In-Memory PriorityQueue Heaps)
-       +-------------------------+
-                    │
-                    ▼
-       +-------------------------+
-       |     MatchingEngine      |   (Price-time priority matching logic)
-       +-------------------------+
-                    │
-                    ▼
-       +-------------------------+
-       |      Trade (Domain)     |   (Immutable business record)
-       +-------------------------+
-                    │
-                    ▼
-       +-------------------------+
-       |    TradeEntity (JPA)    |   (Relational mapping model)
-       +-------------------------+
-                    │
-                    ▼
-       +-------------------------+
-       |     TradeRepository     |   (Spring Data JPA Repository)
-       +-------------------------+
-                    │
-                    ▼
-       +-------------------------+
-       |    PostgreSQL (Neon)    |   (Persistent 'trades' table)
-       +-------------------------+
+```
+        ┌────────────────────────────────────────────────────────┐
+        │                 In-Memory Fast Path                    │
+        │  • OrderBookManager & dual PriorityQueue binary heaps  │
+        │  • Microsecond execution (< 500 ns algorithmic match)  │
+        │  • Volatile active order state                         │
+        └───────────────────────────┬────────────────────────────┘
+                                    │
+                         Executed Trades (Domain)
+                                    │
+                                    ▼
+        ┌────────────────────────────────────────────────────────┐
+        │                Durable Persistence Layer               │
+        │  • Spring Data JPA TradeRepository                     │
+        │  • TradeEntity mapping & validation                    │
+        │  • PostgreSQL Relational Database                      │
+        │  • Permanent audit log, settlement & compliance ledger │
+        └────────────────────────────────────────────────────────┘
 ```
 
-### Why In-Memory OrderBook vs. Persistent Database
-1. **Latency Constraints**: Matching operations in electronic exchanges require microsecond speed. Disk I/O, database locks, and network latency on relational transactions would create severe throughput bottlenecks.
-2. **OrderBook Remains In-Memory**: The binary heaps (`PriorityQueue`) provide $O(1)$ best bid/ask lookups and $O(\log N)$ insertions and removals.
-3. **Database Is for Trade History**: Completed trades are persisted to PostgreSQL for settlement, auditability, reporting, and regulatory compliance.
+### Why Active Orders Are Kept Strictly In-Memory
+1. **Latency Constraints**: High-performance matching engines operate in sub-microsecond to microsecond timeframes. Relational database network roundtrips (1–5 ms), transaction write-ahead logging (WAL), and disk flushes would degrade matching throughput by three orders of magnitude.
+2. **Dynamic Priority Queue Mutations**: Finding the best counter-order in a binary heap is an $\mathcal{O}(1)$ peek and $\mathcal{O}(\log N)$ poll. In SQL, matching requires table locks, index scans, or `SELECT ... FOR UPDATE` rows, which introduce catastrophic serialization bottlenecks under high concurrency.
+3. **Role of PostgreSQL**: PostgreSQL serves as the **persistent settlement ledger**. Once a trade is executed deterministically by `MatchingEngine`, the resulting immutable `Trade` record is persisted to PostgreSQL for regulatory auditability, historical analytics, and account clearing.
 
 ---
 
-## 2. Why Neon & Cloud PostgreSQL?
+## 2. Separation of Concerns: Domain `Trade` vs. JPA `TradeEntity`
 
-- **Serverless PostgreSQL**: Neon provides fully managed cloud PostgreSQL with automated branching, scaling, and backups.
-- **Zero Local Footprint**: Eliminates local daemon and port configuration dependencies, ensuring uniform behavior across developer machines and cloud deployment environments.
-- **Enforced Encryption (SSL/TLS)**: Secure by default via `sslmode=require`.
+ApexMatch enforces clean domain-driven architecture by decoupling the business model from JPA persistence infrastructure:
 
----
-
-## 3. Separation of Domain Model vs. Database Entity
-
-### Domain `Trade` vs JPA `TradeEntity`
-- **Domain `Trade` (`com.apexmatch.model.Trade`)**: Lightweight, plain Java object representing an executed trade event produced by the `MatchingEngine`. Free of ORM annotations, proxies, or database dependencies.
-- **JPA `TradeEntity` (`com.apexmatch.entity.TradeEntity`)**: Annotated with `@Entity` and `@Table(name = "trades")`, mapping table columns, surrogate primary keys, and timestamp metadata.
-- **Mapping in `OrderService`**:
-  ```java
-  List<TradeEntity> entities = trades.stream()
-      .map(trade -> new TradeEntity(
-              trade.getTradeId(),
-              trade.getSymbol(),
-              trade.getBuyerId(),
-              trade.getSellerId(),
-              trade.getPrice(),
-              trade.getQuantity(),
-              LocalDateTime.now()
-      ))
-      .toList();
-  tradeRepository.saveAll(entities);
-  ```
-
----
-
-## 4. Database Schema: `trades` Table
-
-The schema is automatically synchronized via Hibernate (`spring.jpa.hibernate.ddl-auto=update`):
-
-| Column Name   | Data Type         | Constraints                | Description                                       |
-|:--------------|:------------------|:---------------------------|:--------------------------------------------------|
-| `id`          | `BIGINT`          | Primary Key, Auto-Gen      | Surrogate primary key (IDENTITY)                  |
-| `trade_id`    | `VARCHAR(64)`     | NOT NULL, Unique Index     | Business trade identifier (e.g., `TRD-1`)         |
-| `symbol`      | `VARCHAR(16)`     | NOT NULL                   | Stock ticker symbol (e.g., `AAPL`)                |
-| `buyer`       | `VARCHAR(64)`     | NOT NULL                   | Identifier of buyer trader                        |
-| `seller`      | `VARCHAR(64)`     | NOT NULL                   | Identifier of seller trader                       |
-| `price`       | `NUMERIC(19, 4)`  | NOT NULL                   | Trade price (BigDecimal precision, no floats)    |
-| `quantity`    | `BIGINT`          | NOT NULL                   | Traded share volume                               |
-| `executed_at` | `TIMESTAMP`       | NOT NULL                   | Execution timestamp                               |
-
----
-
-## 5. Connecting to Neon PostgreSQL
-
-Spring Boot reads the database parameters from environment variables defined in `src/main/resources/application.properties`:
-
-```properties
-spring.application.name=apexmatch
-server.port=8080
-
-# PostgreSQL / Neon DataSource Configuration
-spring.datasource.url=${DB_URL}
-spring.datasource.username=${DB_USERNAME}
-spring.datasource.password=${DB_PASSWORD}
-spring.datasource.driver-class-name=org.postgresql.Driver
-
-# JPA / Hibernate
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.format_sql=true
+```
+┌─────────────────────────────────┐               ┌─────────────────────────────────┐
+│          Domain Model           │               │        Persistence Model        │
+│   com.apexmatch.model.Trade     │   Mapped In   │  com.apexmatch.entity.TradeEntity│
+│                                 ├──────────────►│                                 │
+│  • Pure Java POJO               │ OrderService  │  • JPA @Entity & @Table         │
+│  • Immutable business record    │               │  • Surrogate PK (BIGINT AUTO)   │
+│  • Free of ORM / SQL annotations│               │  • Managed by Hibernate session │
+└─────────────────────────────────┘               └─────────────────────────────────┘
 ```
 
-### Where to Place Your Neon Database Link
+### Mapping in `OrderService`
+```java
+List<TradeEntity> entities = trades.stream()
+    .map(trade -> new TradeEntity(
+            trade.getTradeId(),
+            trade.getSymbol(),
+            trade.getBuyerId(),
+            trade.getSellerId(),
+            trade.getPrice(),
+            trade.getQuantity(),
+            LocalDateTime.now()
+    ))
+    .toList();
 
-You can supply your Neon credentials using either of the following approaches:
+tradeRepository.saveAll(entities);
+```
 
-#### Option 1: Using a `.env` file (Recommended for Local Dev)
-1. Copy `.env.example` to `.env` in the root of the project:
-   ```bash
-   cp .env.example .env
-   ```
-2. Open `.env` and fill in your Neon details:
-   ```env
-   DB_URL=jdbc:postgresql://ep-your-host.region.aws.neon.tech/neondb?sslmode=require
-   DB_USERNAME=your_username
-   DB_PASSWORD=your_neon_password
-   ```
-   *(Note: `.env` is already configured in `.gitignore` so your secrets will never be committed to Git).*
+---
 
-#### Option 2: Terminal Environment Variables
-Set the variables directly in your terminal before launching the application:
+## 3. Database Schema: `trades` Table
 
-**Windows PowerShell:**
+The PostgreSQL schema generated by Hibernate (`spring.jpa.hibernate.ddl-auto=update`) maps exactly to `TradeEntity.java`:
+
+### DDL Specification
+```sql
+CREATE TABLE trades (
+    id          BIGSERIAL PRIMARY KEY,
+    trade_id    VARCHAR(255) NOT NULL UNIQUE,
+    symbol      VARCHAR(255) NOT NULL,
+    buyer       VARCHAR(255) NOT NULL,
+    seller      VARCHAR(255) NOT NULL,
+    price       NUMERIC(19, 4) NOT NULL,
+    quantity    BIGINT NOT NULL,
+    executed_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+);
+```
+
+### Field Mapping Reference
+
+| Column Name | Data Type | Nullable | Constraints | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `BIGINT` | `NO` | Primary Key, Auto-Gen | Surrogate synthetic primary key (IDENTITY) |
+| `trade_id` | `VARCHAR(255)` | `NO` | Unique Index | Deterministic business trade UUID / sequence identifier |
+| `symbol` | `VARCHAR(255)` | `NO` | Indexed (Recommended) | Stock ticker symbol (e.g. `AAPL`, `TSLA`) |
+| `buyer` | `VARCHAR(255)` | `NO` | Indexed (Recommended) | User identifier of the purchasing counterparty |
+| `seller` | `VARCHAR(255)` | `NO` | Indexed (Recommended) | User identifier of the selling counterparty |
+| `price` | `NUMERIC(19, 4)` | `NO` | Precision 19, Scale 4 | High-precision decimal trade execution price |
+| `quantity` | `BIGINT` | `NO` | Positive Long | Volume of shares executed in this trade |
+| `executed_at` | `TIMESTAMP` | `NO` | System Timestamp | Real-time UTC timestamp when the trade settled |
+
+---
+
+## 4. Production Indexing Strategy
+
+In high-volume trading systems, read queries on trade history fall into three primary categories: ticker tape playback, user trade history, and compliance surveillance. For optimal query performance, apply the following indexes:
+
+```sql
+-- 1. Optimized ticker query & historical price tape (symbol + time)
+CREATE INDEX idx_trades_symbol_executed_at ON trades(symbol, executed_at DESC);
+
+-- 2. Buyer account trade history
+CREATE INDEX idx_trades_buyer ON trades(buyer);
+
+-- 3. Seller account trade history
+CREATE INDEX idx_trades_seller ON trades(seller);
+```
+
+---
+
+## 5. Multi-Environment Connection Architecture
+
+ApexMatch seamlessly supports three PostgreSQL operational topologies:
+
+```
+┌─────────────────────────┬─────────────────────────┬─────────────────────────┐
+│    Cloud Production     │   Local Containerized   │   Automated Testing     │
+│       Neon Serverless   │    Docker Compose       │      Testcontainers     │
+├─────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ • Serverless Postgres   │ • Local dockerized PG   │ • Ephemeral container   │
+│ • SSL/TLS enforced      │ • Standalone isolation  │ • Clean state per run   │
+│ • Auto-scaling compute  │ • Fast dev loop         │ • Real PostgreSQL DB    │
+│ • Zero local footprint  │ • Port 5432             │ • Zero mock trade test  │
+└─────────────────────────┴─────────────────────────┴─────────────────────────┘
+```
+
+### Environment Configuration Matrix
+
+| Variable | Neon Cloud | Local Docker Compose | Testcontainers (Automated Tests) |
+| :--- | :--- | :--- | :--- |
+| `DB_URL` / `SPRING_DATASOURCE_URL` | `jdbc:postgresql://ep-...region.aws.neon.tech/neondb?sslmode=require` | `jdbc:postgresql://postgres:5432/apexmatch` | *Dynamically injected by Testcontainers* |
+| `DB_USERNAME` / `SPRING_DATASOURCE_USERNAME` | *Neon username* | `postgres` | `test` |
+| `DB_PASSWORD` / `SPRING_DATASOURCE_PASSWORD` | *Neon secret password* | `postgres` | `test` |
+| `SPRING_JPA_HIBERNATE_DDL_AUTO` | `update` | `update` | `update` |
+
+### Setting Environment Variables Locally
+
+#### Via `.env` File:
+```env
+DB_URL=jdbc:postgresql://ep-your-host.region.aws.neon.tech/neondb?sslmode=require
+DB_USERNAME=your_username
+DB_PASSWORD=your_neon_password
+```
+
+#### Via PowerShell:
 ```powershell
 $env:DB_URL="jdbc:postgresql://ep-your-host.region.aws.neon.tech/neondb?sslmode=require"
 $env:DB_USERNAME="your_username"
 $env:DB_PASSWORD="your_neon_password"
-
 mvn spring-boot:run
 ```
-
-**Windows Command Prompt (cmd):**
-```cmd
-set DB_URL=jdbc:postgresql://ep-your-host.region.aws.neon.tech/neondb?sslmode=require
-set DB_USERNAME=your_username
-set DB_PASSWORD=your_neon_password
-
-mvn spring-boot:run
-```
-
-**Linux / macOS:**
-```bash
-export DB_URL="jdbc:postgresql://ep-your-host.region.aws.neon.tech/neondb?sslmode=require"
-export DB_USERNAME="your_username"
-export DB_PASSWORD="your_neon_password"
-
-mvn spring-boot:run
-```
-
----
-
-## 6. Verifying Data in Neon
-
-Once an order match occurs via `POST /api/orders`, verify the persisted trade records directly in the **Neon SQL Editor**:
-
-```sql
--- View all executed trades
-SELECT * FROM trades ORDER BY executed_at DESC;
-
--- Verify specific stock trades
-SELECT trade_id, symbol, buyer, seller, price, quantity, executed_at 
-FROM trades 
-WHERE symbol = 'AAPL';
-```
-
----
-
-## 7. Security Best Practices
-
-1. **No Credentials in Git**: Never hardcode database passwords, hostnames, or usernames in source code or properties files.
-2. **Git Ignore Protection**: Ensure `.env` and `application-local.properties` are listed in `.gitignore`.
-3. **Template Tracking**: Keep only `.env.example` committed with non-sensitive placeholder values.
